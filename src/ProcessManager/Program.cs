@@ -19,8 +19,6 @@ namespace Akkd.ProcessManager {
 
             sw.Stop();
 
-            //var elapsedMs = sw.ElapsedMilliseconds;
-
             Console.WriteLine("Time taken: {0}ms", sw.Elapsed.TotalMilliseconds);
 
             Console.WriteLine("\nPress any key to continue . . .");
