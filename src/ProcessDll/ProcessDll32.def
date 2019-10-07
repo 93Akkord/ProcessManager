@@ -1,0 +1,3 @@
+LIBRARY ProcessDll32
+EXPORTS
+	GetProcCmdLine
