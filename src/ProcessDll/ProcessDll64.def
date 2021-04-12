@@ -1,3 +1,4 @@
 LIBRARY ProcessDll64
 EXPORTS
 	GetProcCmdLine
+	GetPrivateWorkingSet

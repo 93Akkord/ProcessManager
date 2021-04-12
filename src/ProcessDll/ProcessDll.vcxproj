@@ -167,6 +167,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ProcessDll32.def" />
+    <None Include="ProcessDll64.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

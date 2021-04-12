@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -8,6 +8,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using PInvoke;
 using Akkd.ProcessManager;
+using System.Security;
+using System.Diagnostics;
+using System.Management;
 
 namespace Akkd.ProcessManager {
     public class ProcessEx {
@@ -23,7 +26,13 @@ namespace Akkd.ProcessManager {
 
         public int ParentProcessId { get; }
 
+        public ProcessEx ParentProcess { get; private set; }
+
         public List<ProcessEx> ChildProcesses { get; }
+
+        public List<ProcessEx> ProcessGroup { get; private set; }
+
+        public long ProcessGroupMemoryUsed => ProcessGroup.Sum(process => process.MemoryUsed);
 
         public IntPtr Handle => _handle.DangerousGetHandle();
 
@@ -33,9 +42,11 @@ namespace Akkd.ProcessManager {
 
         public string User => GetProcessUser(Handle);
 
-        public long MemoryUsed => GetProcessMemory(Handle);
+        public long MemoryUsed => GetProcessMemory(ProcessId);
 
-        public string Arch => (Is64Bit(Handle)) ? "x64" : "x86";
+        public long MemoryUsed2 => GetProcessMemory2(Handle);
+
+        public string Arch => GetArch(Handle); // (Is64Bit(Handle)) ? "x64" : "x86";
 
         public string CommandLine => GetCommandLine(ProcessId);
 
@@ -80,6 +91,14 @@ namespace Akkd.ProcessManager {
                 processList.Add(process);
             } while (Kernel32.Process32Next(hProcessSnap, ref pe32));
 
+            foreach (var process in processList) {
+                var parentProcess = processList.FirstOrDefault(proc => proc.ProcessId == process.ParentProcessId);
+                var processGroup = processList.FindAll(proc => proc.ProcessName == process.ProcessName);
+
+                process.ParentProcess = parentProcess;
+                process.ProcessGroup = processGroup;
+            }
+
             return processList;
         }
 
@@ -92,18 +111,18 @@ namespace Akkd.ProcessManager {
             bytes /= 1024;
 
             if (bytes < 1024) {
-                return bytes.ToString("#.# KB");
+                return bytes.ToString("#.0 KB");
             }
 
             bytes /= 1024;
 
             if (bytes < 1024) {
-                return bytes.ToString("#.# MB");
+                return bytes.ToString("#.0 MB");
             }
 
             bytes /= 1024;
 
-            return bytes.ToString("#.# GB");
+            return bytes.ToString("#.0 GB");
         }
 
         public static string GetCommandLine(int processId) {
@@ -140,7 +159,9 @@ namespace Akkd.ProcessManager {
 
         private Kernel32.SafeObjectHandle GetProcessHandle(int processId) {
             //return Kernel32.OpenProcess((int)Kernel32.ProcessAccess.PROCESS_QUERY_LIMITED_INFORMATION | (int)Kernel32.ProcessAccess.PROCESS_VM_READ, false, processId);
-            return Kernel32.OpenProcess((int)Kernel32.ProcessAccess.PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
+            //return Kernel32.OpenProcess((int)Kernel32.ProcessAccess.PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
+
+            return Kernel32.OpenProcess((int)Kernel32.ProcessAccess.PROCESS_QUERY_INFORMATION | (int)Kernel32.ProcessAccess.PROCESS_VM_READ, false, processId);
         }
 
         private string GetProcessFileName(IntPtr hProcess) {
@@ -173,21 +194,41 @@ namespace Akkd.ProcessManager {
             }
         }
 
-        private unsafe long GetProcessMemory(IntPtr hProcess) {
+        public unsafe static long GetProcessMemory(int processId) {
+            long memory = 0;
+
+            switch (IntPtr.Size) {
+                case 4:
+                    memory = Win32.GetPrivateWorkingSet32((uint)processId);
+                    break;
+
+                case 8:
+                    memory = Win32.GetPrivateWorkingSet64((uint)processId);
+                    break;
+            }
+
+            return memory;
+        }
+
+        private unsafe long GetProcessMemory2(IntPtr hProcess) {
             var memory = (long)0;
             var pmc = new Win32.PROCESS_MEMORY_COUNTERS { cb = (uint)sizeof(Win32.PROCESS_MEMORY_COUNTERS) };
 
             if (Win32.GetProcessMemoryInfo(hProcess, ref pmc, pmc.cb)) {
                 memory = (long)pmc.WorkingSetSize;
 
-                //Console.WriteLine($"            WorkingSetSize: {ToString((long)pmc.WorkingSetSize)}");
-                //Console.WriteLine($"   QuotaPeakPagedPoolUsage: {ToString((long)pmc.QuotaPeakPagedPoolUsage)}");
-                //Console.WriteLine($"       QuotaPagedPoolUsage: {ToString((long)pmc.QuotaPagedPoolUsage)}");
-                //Console.WriteLine($"QuotaPeakNonPagedPoolUsage: {ToString((long)pmc.QuotaPeakNonPagedPoolUsage)}");
-                //Console.WriteLine($"    QuotaNonPagedPoolUsage: {ToString((long)pmc.QuotaNonPagedPoolUsage)}");
-                //Console.WriteLine($"             PagefileUsage: {ToString((long)pmc.PagefileUsage)}");
-                //Console.WriteLine($"         PeakPagefileUsage: {ToString((long)pmc.PeakPagefileUsage)}");
-                //Console.WriteLine($"                        cb: {ToString((long)pmc.cb)}");
+                //if (ProcessId == 18960) {
+                //    Console.WriteLine($"                       pid: {ProcessId}");
+                //    Console.WriteLine($"            WorkingSetSize: {ToString((long)pmc.WorkingSetSize)}");
+                //    Console.WriteLine($"   QuotaPeakPagedPoolUsage: {ToString((long)pmc.QuotaPeakPagedPoolUsage)}");
+                //    Console.WriteLine($"       QuotaPagedPoolUsage: {ToString((long)pmc.QuotaPagedPoolUsage)}");
+                //    Console.WriteLine($"QuotaPeakNonPagedPoolUsage: {ToString((long)pmc.QuotaPeakNonPagedPoolUsage)}");
+                //    Console.WriteLine($"    QuotaNonPagedPoolUsage: {ToString((long)pmc.QuotaNonPagedPoolUsage)}");
+                //    Console.WriteLine($"             PagefileUsage: {ToString((long)pmc.PagefileUsage)}");
+                //    Console.WriteLine($"         PeakPagefileUsage: {ToString((long)pmc.PeakPagefileUsage)}");
+                //    Console.WriteLine($"                        cb: {ToString((long)pmc.cb)}");
+                //    Console.WriteLine("");
+                //}
             }
 
             return memory;
@@ -201,6 +242,16 @@ namespace Akkd.ProcessManager {
                 throw new Win32Exception();
 
             return !isWow64;
+        }
+
+        private string GetArch(IntPtr hProcess) {
+            if (!Environment.Is64BitOperatingSystem)
+                return "x86";
+
+            if (!Win32.IsWow64Process(hProcess, out var isWow64))
+                return "Unknown Arch";
+
+            return (!isWow64) ? "x64" : "x86";
         }
 
         private static string[] CommandLineToArgs(string commandLine) {
@@ -238,5 +289,76 @@ namespace Akkd.ProcessManager {
         public override string ToString() {
             return $"{ProcessName} [{ProcessId}]";
         }
+
+        # region Test Methods
+
+        public static long GetProcessPrivateWorkingSet64Size(int processId) {
+            long processSize = 0;
+            var process = Process.GetProcessById(processId);
+
+            if (process == null)
+                return processSize;
+
+            string instanceName = GetProcessInstanceName(process.Id);
+            var counter = new PerformanceCounter("Process", "Working Set - Private", instanceName, true);
+
+            processSize = Convert.ToInt32(counter.NextValue()) / 1024;
+
+            return processSize;
+        }
+
+        public static string GetProcessInstanceName(int processId) {
+            PerformanceCounterCategory cat = new PerformanceCounterCategory("Process");
+            string[] instances = cat.GetInstanceNames();
+
+            foreach (string instance in instances) {
+                using (PerformanceCounter cnt = new PerformanceCounter("Process", "ID Process", instance, true)) {
+                    int val = (int)cnt.RawValue;
+
+                    if (val == processId)
+                        return instance;
+                }
+            }
+
+            throw new Exception("Could not find performance counter");
+        }
+
+        public static long GetPrivateWorkingSetForAllProcesses(string processName) {
+            long totalMem = 0;
+            var process = Process.GetProcessesByName(processName);
+
+            foreach (Process proc in process) {
+                long memsize = GetProcessPrivateWorkingSet64Size(proc.Id);
+
+                totalMem += memsize;
+            }
+
+            return totalMem;
+        }
+
+        public static void QueryWorkingset() {
+            var query = @"
+            SELECT
+                Name,
+                WorkingSetPrivate
+            FROM
+                Win32_PerfRawData_PerfProc_Process";
+
+            query = @"
+            SELECT
+                *
+            FROM
+                Win32_PerfRawData_PerfProc_Process";
+
+            using (var searcher = new ManagementObjectSearcher("root\\CIMV2", query)) {
+                foreach (var queryObj in searcher.Get()) {
+                    var props = queryObj.Properties.Cast<PropertyData>().ToList().Select(prop => $"{prop.Name}: {prop.Value}");
+
+                    Console.WriteLine($"{queryObj["Name"]}: {queryObj["WorkingSetPrivate"]}");
+                }
+            }
+        }
+
+        # endregion Test Methods
     }
 }

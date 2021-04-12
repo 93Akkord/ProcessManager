@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -29,6 +29,12 @@ namespace Akkd.ProcessManager {
 
         [DllImport("ProcessDll64.dll", CharSet = CharSet.Unicode, EntryPoint = "GetProcCmdLine")]
         public static extern bool GetProcCmdLine64(uint nProcId, StringBuilder sb, uint dwSizeBuf);
+
+        [DllImport("ProcessDll32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetPrivateWorkingSet")]
+        public static extern long GetPrivateWorkingSet32(uint nProcId);
+
+        [DllImport("ProcessDll64.dll", CharSet = CharSet.Unicode, EntryPoint = "GetPrivateWorkingSet")]
+        public static extern long GetPrivateWorkingSet64(uint nProcId);
 
         #endregion Methods
 

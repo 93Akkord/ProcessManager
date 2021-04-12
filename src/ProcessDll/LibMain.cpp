@@ -12,14 +12,18 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
 
 bool __stdcall GetProcCmdLine(DWORD dwProcId, WCHAR* buf, DWORD dwSizeBuf) {
 	LPWSTR sz = 0;
-	
+
 	if (CProcessHelper::GetProcessCommandLine(dwProcId, sz) && sz) {
 		wcscpy_s(buf, dwSizeBuf, sz);
-		
+
 		delete sz;
-		
+
 		return true;
 	}
-	
+
 	return false;
+}
+
+long __stdcall GetPrivateWorkingSet(DWORD dwProcId) {
+	return CProcessHelper::GetPrivateWorkingSetSize(dwProcId);
 }

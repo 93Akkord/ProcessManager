@@ -59,6 +59,21 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Akkd.Common">
+      <HintPath>..\..\..\Akkd\Akkd.Common\bin\Debug\x64\Akkd.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Akkd.Extensions">
+      <HintPath>..\..\..\Akkd\Akkd.Extensions\bin\Release\x64\Akkd.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Akkd.Logger">
+      <HintPath>..\..\..\Akkd\Akkd.Logger\bin\Debug\x64\Akkd.Logger.dll</HintPath>
+    </Reference>
+    <Reference Include="Akkd.PInvoke">
+      <HintPath>..\..\..\Akkd\Akkd.PInvoke\bin\Debug\x64\Akkd.PInvoke.dll</HintPath>
+    </Reference>
+    <Reference Include="ConsoleTables, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\ConsoleTables.2.4.2\lib\net40\ConsoleTables.dll</HintPath>
+    </Reference>
     <Reference Include="PInvoke.AdvApi32, Version=0.5.0.0, Culture=neutral, PublicKeyToken=9e300f9f87f04a7a, processorArchitecture=MSIL">
       <HintPath>..\..\packages\PInvoke.AdvApi32.0.5.184\lib\net45\PInvoke.AdvApi32.dll</HintPath>
     </Reference>
@@ -73,6 +88,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -83,6 +99,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ProcessEx.cs" />
+    <Compile Include="ProcessExTableRow.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <AutoGen>True</AutoGen>
@@ -113,6 +130,6 @@
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PreBuildEvent>"%25ProgramFiles(x86)%25\Microsoft Visual Studio\2019\Community\Common7\IDE\TextTransform.exe" -a !!BuildConfiguration!$(ConfigurationName) "$(ProjectDir)Properties\AssemblyInfo.tt" &gt; "C:\development\csharp\ProcessManager\output.txt"</PreBuildEvent>
+    <PreBuildEvent>"%25ProgramFiles(x86)%25\Microsoft Visual Studio\2019\Community\Common7\IDE\TextTransform.exe" -a !!BuildConfiguration!$(ConfigurationName) "$(ProjectDir)Properties\AssemblyInfo.tt" &gt; "$(ProjectDir)output.txt"</PreBuildEvent>
   </PropertyGroup>
 </Project>

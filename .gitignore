@@ -226,3 +226,5 @@ project.lock.json
 
 _self/
 src/ProcessManager/*.dll
+
+.leu
